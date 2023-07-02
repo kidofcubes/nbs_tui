@@ -1,21 +1,9 @@
-use nom::bytes::streaming::{is_not, take};
-use nom::combinator::map;
+use nom::bytes::streaming::take;
 use nom::number::streaming::*;
-use nom::sequence::{delimited, tuple};
 use nom::{
-    bytes::complete::{tag, take_while_m_n},
-    character::streaming::char,
     combinator::map_res,
-    sequence::Tuple,
-    IResult, Parser,
+    IResult,
 };
-use rodio::Sink;
-use rodio::source::Buffered;
-use std::fs::File;
-use std::io::Cursor;
-use std::io::{prelude::*, BufReader};
-use std::{io, process};
-use rodio::{Decoder, OutputStream, source::Source};
 use NoteblockSection::{SetTick, SetLayer};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -65,7 +53,7 @@ pub struct Layer {
     pub stereo: u8,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CustomInstrument {
+pub struct Instrument {
     pub name: String,
     pub sound_file: String,
     pub sound_key: i8, //0-87
@@ -76,11 +64,11 @@ pub struct Song {
     pub header: Header,
     pub noteblocks: Vec<NoteblockSection>,
     pub layers: Vec<Layer>,
-    pub custom_instruments: Vec<CustomInstrument>,
+    pub custom_instruments: Vec<Instrument>,
 }
 
 pub fn header(input: &[u8]) -> IResult<&[u8], Header> {
-    let (input, is_open_nbs) = le_i16(input)?;
+    let (input, _is_open_nbs) = le_i16(input)?;
 	//shigsplode when is_open_nbs is not 0
     let (input, open_nbs_version) = le_i8(input)?;
     let (input, vanilla_instrument_count) = le_i8(input)?;
@@ -171,14 +159,14 @@ pub fn layer(input: &[u8]) -> IResult<&[u8], Layer> {
 
     }))
 }
-pub fn custom_instrument(input: &[u8]) -> IResult<&[u8], CustomInstrument> {
+pub fn custom_instrument(input: &[u8]) -> IResult<&[u8], Instrument> {
     let (input, string_length) = le_i32(input)?;
     let (input, name) = map_res(take(string_length as usize), std::str::from_utf8)(input)?;
     let (input, string_length) = le_i32(input)?;
     let (input, sound_file) = map_res(take(string_length as usize), std::str::from_utf8)(input)?;
     let (input, sound_key) = le_i8(input)?;
     let (input, press_key) = le_i8(input)?;
-    return Ok((input, CustomInstrument {
+    return Ok((input, Instrument {
         name: name.into(),
         sound_file: sound_file.into(),
         sound_key,
@@ -187,14 +175,15 @@ pub fn custom_instrument(input: &[u8]) -> IResult<&[u8], CustomInstrument> {
 }
 
 pub fn song(input: &[u8]) -> IResult<&[u8], Song> {
+    println!("Starting to parse");
     let (mut input, header) = header(input)?;
-
+    println!("Header parsed");
     //NOTEBLOCKS
     let mut noteblocks: Vec<NoteblockSection> = Vec::new();
     let mut tick: i32=-1;
-    let mut layerPos: i32=-1;
+    let mut layer_pos: i32=-1;
     loop {
-        if layerPos==-1 {
+        if layer_pos==-1 {
             let tick_jump = le_i16(input)?; input = tick_jump.0;
             if tick_jump.1!=0 {
                 // println!("tick_jump was {:?}",tick_jump.1);
@@ -208,18 +197,18 @@ pub fn song(input: &[u8]) -> IResult<&[u8], Song> {
         let layer_jump = le_i16(input)?; input = layer_jump.0;
 
         if layer_jump.1==0 {
-            layerPos = -1;
+            layer_pos = -1;
             continue;
         }
-        layerPos+=i32::from(layer_jump.1);
-        noteblocks.push(SetLayer(layerPos));
+        layer_pos+=i32::from(layer_jump.1);
+        noteblocks.push(SetLayer(layer_pos));
 
         let out: (&[u8], Noteblock) = noteblock(&input).unwrap();
         input=out.0;
         noteblocks.push(NoteblockSection::Noteblock(out.1));
     }
     let mut layers: Vec<Layer> = Vec::new();
-    let mut custom_instruments: Vec<CustomInstrument> = Vec::new();
+    let mut custom_instruments: Vec<Instrument> = Vec::new();
 
     //LAYERS (optional)
     if !input.is_empty() {
