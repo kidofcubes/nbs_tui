@@ -1,91 +1,29 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use crate::event::EventHandler;
+use tui::backend::CrosstermBackend;
+use tui::layout::Rect;
+use crate::event::{EventHandler, Event};
+use crate::noteblock_widget::{NoteblockWidget};
+use crate::parsers::{Song, song, self, Layer, Instrument, NoteblockSection};
+use crate::play_song;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
-use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
-use std::{io, error};
+use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen, self};
+use std::fs::File;
+use std::io::Read;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread::JoinHandle;
+use std::{io, error, thread};
 use tui::Terminal;
 use tui::{
     backend::Backend,
-    layout::Alignment,
     style::{Color, Style},
     widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
 
-/// Handles the key events and updates the state of [`App`].
-pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
-    match key_event.code {
-        // Exit application on `ESC` or `q`
-        KeyCode::Esc | KeyCode::Char('q') => {
-            app.quit();
-        }
-        // Exit application on `Ctrl-C`
-        KeyCode::Char('c') | KeyCode::Char('C') => {
-            if key_event.modifiers == KeyModifiers::CONTROL {
-                app.quit();
-            }
-        }
-        // Counter handlers
-        KeyCode::Right => {
-            app.increment_counter();
-        }
-        KeyCode::Left => {
-            app.decrement_counter();
-        }
-        // Other handlers you could add here.
-        _ => {}
-    }
-    Ok(())
-}
-
 
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
-
-/// Application.
-#[derive(Debug)]
-pub struct App {
-    /// Is the application running?
-    pub running: bool,
-    /// counter
-    pub counter: u8,
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            running: true,
-            counter: 0,
-        }
-    }
-}
-
-impl App {
-    /// Constructs a new instance of [`App`].
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Handles the tick event of the terminal.
-    pub fn tick(&self) {}
-
-    /// Set running to false to quit the application.
-    pub fn quit(&mut self) {
-        self.running = false;
-    }
-
-    pub fn increment_counter(&mut self) {
-        if let Some(res) = self.counter.checked_add(1) {
-            self.counter = res;
-        }
-    }
-
-    pub fn decrement_counter(&mut self) {
-        if let Some(res) = self.counter.checked_sub(1) {
-            self.counter = res;
-        }
-    }
-}
 
 /// Representation of a terminal user interface.
 ///
@@ -120,8 +58,8 @@ impl<B: Backend> Tui<B> {
     ///
     /// [`Draw`]: tui::Terminal::draw
     /// [`rendering`]: crate::ui:render
-    pub fn draw(&mut self, app: &mut App) -> AppResult<()> {
-        self.terminal.draw(|frame: &mut Frame<'_, B>| render(app, frame))?;
+    pub fn draw(&mut self) -> AppResult<()> {
+        self.terminal.draw(|frame: &mut Frame<'_, B>| render(frame))?;
         Ok(())
     }
 
@@ -138,28 +76,148 @@ impl<B: Backend> Tui<B> {
 
 
 /// Renders the user interface widgets.
-pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
-    // This is where you add new widgets.
-    // See the following resources:
-    // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
-    // - https://github.com/tui-rs-revival/ratatui/tree/master/examples
-    frame.render_widget(
-        Paragraph::new(format!(
-            "This is a tui template.\n\
-                Press `Esc`, `Ctrl-C` or `q` to stop running.\n\
-                Press left and right to increment and decrement the counter respectively.\n\
-                Counter: {}",
-            app.counter
-        ))
-        .block(
-            Block::default()
-                .title("Template")
-                .title_alignment(Alignment::Center)
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded),
-        )
-        .style(Style::default().fg(Color::Cyan).bg(Color::Black))
-        .alignment(Alignment::Center),
-        frame.size(),
-    )
+pub fn render<B: Backend>(frame: &mut Frame<'_, B>) {
+    let block = NoteblockWidget::default()
+    // Borders on every side...
+    .borders(Borders::ALL)
+    .border_type(BorderType::Plain)
+    // The background of the current color...
+    .style(Style::default());
+
+
+    // Render into the first chunk of the layout.
+    frame.render_widget(block,frame.size());
+}
+
+enum SongEdit {
+    Layer(Layer),
+    Instrument(Instrument),
+    Noteblock(NoteblockSection)
+}
+struct vec_edit {
+    index: u16,
+    
+}
+// pub fn play_updated_song(data_in: Receiver<>){
+
+// }
+
+
+pub fn loadSong(location : &str) {
+
+    // self.song=Some(song);
+    // let (tx, rx) = mpsc::channel();
+    // if self.playbackThread.is_some_and(|thread| !thread.is_finished()){
+        // self.playbackThread.unwrap().thread().
+    // }
+    // if self.playback_thread.is_none() {
+
+    //     self.
+    // }
+    // let val = String::from("hi");
+    // tx.send(val).unwrap();
+
+    // let temp = &self.song.unwrap().;
+    // let test = Arc::new(self);
+    // let handle: thread::JoinHandle<()> = thread::spawn(move || {
+        // let val = String::from("hi");
+        // tx.send(val).unwrap();
+        // play_song(&((&self).song).unwrap());
+        // play_song(&(self.clone()).song.unwrap());
+    // });
+}
+
+
+
+
+
+/// Handles the tick event of the terminal.
+pub fn tick() {}
+
+
+//this is not a good way to do this but uhhhhhhhhhhh
+/* this is blocking */
+pub fn start() -> AppResult<()> {
+    println!("GO");
+    // Create an application.
+    // thread::scope(|scope| {
+
+    // Is the application running?
+    let mut running = true;
+    // song
+    let mut song: Arc<Mutex<Option<Song>>> = Arc::new(Mutex::new(None));
+
+    let (
+        tx ,
+        rx ) = mpsc::channel();
+
+
+
+
+    let mut playback_thread = thread::spawn(move || {
+        loop {
+            let song: Song = rx.recv().unwrap();
+            println!("got a {:?}",song);
+            play_song(&song);
+        }
+    });
+
+
+    // Initialize the terminal user interface.
+    let backend = CrosstermBackend::new(io::stderr());
+    let terminal = Terminal::new(backend).unwrap();
+    let events = EventHandler::new(250);
+    let mut tui = Tui::new(terminal, events);
+    tui.init().unwrap();
+
+    // Start the main loop.
+    while running {
+        // Render the user interface.
+        tui.draw().unwrap();
+        // Handle events.
+        match tui.events.next().unwrap() {
+            Event::Tick => tick(),
+            Event::Key(key_event) => 
+                match key_event.code {
+                    // Exit application on `ESC` or `q`
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        running=false;
+                    }
+                    // Exit application on `Ctrl-C`
+                    KeyCode::Char('c') | KeyCode::Char('C') => {
+                        if key_event.modifiers == KeyModifiers::CONTROL {
+                            running=false;
+                        }
+                    }
+                    // Counter handlers
+                    KeyCode::Char('L') => {
+                        let location = "8xthing.nbs";
+                        let mut f = File::open(format!("songs/{}",location)).unwrap();
+                        let mut buffer = vec!();
+                        f.read_to_end(&mut buffer).unwrap();
+                        let (_, temp) = parsers::song(&buffer).unwrap();
+                        // song = Some(temp);
+                        // tx.send(song.unwrap().clone()).unwrap();
+                    }
+                    // KeyCode::Char('T') => {
+                    //     tx.send("imposter");
+                    // }
+                    // Other handlers you could add here.
+                    _ => {}
+                }
+            ,
+            Event::Mouse(event) => {
+                // println!("moused on {:?}",event)
+            }
+            Event::Resize(x, y) => {
+                // println!("resized to {},{}",x,y)
+            }
+        }
+    }
+
+    // Exit the user interface.
+    tui.exit().unwrap();
+    // });
+
+    Ok(())
 }

@@ -11,3 +11,4 @@ tui = { package = "ratatui", version = "0.20.1" }
 nom = "7.1.3"
 symphonia-format-ogg = "0.5.3"
 rodio = "0.17.1"
+im = "15.1.0"
