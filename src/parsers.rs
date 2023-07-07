@@ -175,9 +175,7 @@ pub fn custom_instrument(input: &[u8]) -> IResult<&[u8], Instrument> {
 }
 
 pub fn song(input: &[u8]) -> IResult<&[u8], Song> {
-    println!("Starting to parse");
     let (mut input, header) = header(input)?;
-    println!("Header parsed");
     //NOTEBLOCKS
     let mut noteblocks: Vec<NoteblockSection> = Vec::new();
     let mut tick: i32=-1;
