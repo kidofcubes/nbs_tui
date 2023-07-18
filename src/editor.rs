@@ -1,9 +1,8 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent, KeyModifiers, self, Event};
 use rodio::source::Buffered;
 use rodio::{OutputStream, Decoder, Source};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;
-use crate::event::{EventHandler, Event};
 use crate::noteblock_widget::{NoteblockWidget};
 use crate::parsers::{Song, song, self, Layer, Instrument, NoteblockSection, Header, Noteblock};
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
@@ -36,14 +35,12 @@ pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 pub struct Tui<B: Backend> {
     /// Interface to the Terminal.
     terminal: Terminal<B>,
-    /// Terminal event handler.
-    pub events: EventHandler,
 }
 
 impl<B: Backend> Tui<B> {
     /// Constructs a new instance of [`Tui`].
-    pub fn new(terminal: Terminal<B>, events: EventHandler) -> Self {
-        Self { terminal, events }
+    pub fn new(terminal: Terminal<B>) -> Self {
+        Self { terminal }
     }
 
     /// Initializes the terminal interface.
@@ -277,7 +274,7 @@ pub fn start() -> AppResult<()> {
     
 
     
-    let mut playback_thread = thread::spawn(move || {
+    thread::spawn(move || {
         loop {
             let song_edit: SongEdit = rx.recv().unwrap();
             // println!("got a {:?}",song_edit);
@@ -300,8 +297,7 @@ pub fn start() -> AppResult<()> {
     // Initialize the terminal user interface.
     let backend = CrosstermBackend::new(io::stderr());
     let terminal = Terminal::new(backend).unwrap();
-    let events = EventHandler::new(1); //250 fps incredible
-    let mut tui = Tui::new(terminal, events);
+    let mut tui = Tui::new(terminal);
     tui.init().unwrap();
 
     let mut editor_state = EditorState {
@@ -319,55 +315,62 @@ pub fn start() -> AppResult<()> {
         wait_duration: Duration::new(0,0),
     };
 
+    let event_wait = Duration::from_secs(0);
+    let wait_duration = Duration::from_millis(16);
+    let mut last_tick = Instant::now();
+
     // Start the main loop.
     while running {
-        // Render the user interface.
-        tui.draw(&mut editor_state).unwrap();
-        // Handle events.
-        match tui.events.next().unwrap() {
-            Event::Tick => {
-                tick(&mut editor_state);
-            },
-            Event::Key(key_event) => 
-                match key_event.code {
-                    // Exit application on `ESC` or `q`
-                    KeyCode::Esc | KeyCode::Char('q') => {
-                        running=false;
-                    }
-                    // Exit application on `Ctrl-C`
-                    KeyCode::Char('c') | KeyCode::Char('C') => {
-                        if key_event.modifiers == KeyModifiers::CONTROL {
+
+        if event::poll(event_wait).expect("no events available") {
+            match event::read().expect("unable to read event") {
+                Event::Key(key_event) => 
+                    match key_event.code {
+                        // Exit application on `ESC` or `q`
+                        KeyCode::Esc | KeyCode::Char('q') => {
                             running=false;
                         }
-                    }
-                    // Counter handlers
-                    KeyCode::Char('L') => {
-                        let location = "Nyan Cat.nbs";
-                        let mut f = File::open(format!("songs/{}",location)).unwrap();
-                        let mut buffer = vec!();
-                        f.read_to_end(&mut buffer).unwrap();
-                        let (_, temp) = parsers::song(&buffer).unwrap();
-                        editor_state.tempo = temp.header.tempo as f64 / 100_f64;
-                        editor_state.song = Some(temp);
-                        editor_state.playing=true;
-                        editor_state.prev_instant = Instant::now();
-                        editor_state.debug_instant = Instant::now();
-                        tx.send(SongEdit::Song(editor_state.song.clone())).unwrap();
-                    }
-                    // KeyCode::Char('T') => {
-                    //     tx.send("imposter");
-                    // }
-                    // Other handlers you could add here.
-                    _ => {}
-                }
-            ,
-            Event::Mouse(event) => {
-                // println!("moused on {:?}",event)
-            }
-            Event::Resize(x, y) => {
-                // println!("resized to {},{}",x,y)
+                        // Exit application on `Ctrl-C`
+                        KeyCode::Char('c') | KeyCode::Char('C') => {
+                            if key_event.modifiers == KeyModifiers::CONTROL {
+                                running=false;
+                            }
+                        }
+                        // Counter handlers
+                        KeyCode::Char('L') => {
+                            let location = "Nyan Cat.nbs";
+                            let mut f = File::open(format!("songs/{}",location)).unwrap();
+                            let mut buffer = vec!();
+                            f.read_to_end(&mut buffer).unwrap();
+                            let (_, temp) = parsers::song(&buffer).unwrap();
+                            editor_state.tempo = temp.header.tempo as f64 / 100_f64;
+                            editor_state.song = Some(temp);
+                            editor_state.playing=true;
+                            editor_state.prev_instant = Instant::now();
+                            editor_state.debug_instant = Instant::now();
+                            tx.send(SongEdit::Song(editor_state.song.clone())).unwrap();
+                        }
+                        // KeyCode::Char('T') => {
+                        //     tx.send("imposter");
+                        // }
+                        // Other handlers you could add here.
+                        _ => {}
+                    },
+                Event::Mouse(e) => {
+                    // println!("moused on {:?}",event)
+                },
+                Event::Resize(w, h) => {
+                    // println!("resized to {},{}",x,y)
+                },
+                _ => unimplemented!(),
             }
         }
+
+        // Render the user interface.
+        tui.draw(&mut editor_state).unwrap();
+        tick(&mut editor_state);
+        std::thread::sleep(wait_duration.saturating_sub(last_tick.elapsed()));
+        last_tick=Instant::now();
     }
 
     // Exit the user interface.

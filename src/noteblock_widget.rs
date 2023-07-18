@@ -11,22 +11,40 @@ pub struct NoteblockWidget {
 
 
 const INSTRUMENT_COLORS: [ratatui::style::Color; 16] = [
-    Color::Rgb(0, 70, 140),
-    Color::Rgb(34, 110, 45),
-    Color::Rgb(156, 77, 79),
-    Color::Rgb(156, 156, 0),
-    Color::Rgb(124, 62, 122),
-    Color::Rgb(103, 45, 31),
-    Color::Rgb(156, 149, 63),
-    Color::Rgb(156, 0, 156),
-    Color::Rgb(54, 111, 124),
-    Color::Rgb(156, 156, 156),
-    Color::Rgb(0, 112, 156),
-    Color::Rgb(156, 10, 14),
-    Color::Rgb(156, 59, 15),
-    Color::Rgb(0, 156, 0),
-    Color::Rgb(156, 0, 59),
-    Color::Rgb(60, 60, 60)
+    // Color::Rgb(0, 70, 140),
+    // Color::Rgb(34, 110, 45),
+    // Color::Rgb(156, 77, 79),
+    // Color::Rgb(156, 156, 0),
+    // Color::Rgb(124, 62, 122),
+    // Color::Rgb(103, 45, 31),
+    // Color::Rgb(156, 149, 63),
+    // Color::Rgb(156, 0, 156),
+    // Color::Rgb(54, 111, 124),
+    // Color::Rgb(156, 156, 156),
+    // Color::Rgb(0, 112, 156),
+    // Color::Rgb(156, 10, 14),
+    // Color::Rgb(156, 59, 15),
+    // Color::Rgb(0, 156, 0),
+    // Color::Rgb(156, 0, 59),
+    // Color::Rgb(60, 60, 60),
+
+
+    Color::Rgb(25, 100, 172), //official colors
+    Color::Rgb(60, 142, 72),
+    Color::Rgb(190, 107, 107),
+    Color::Rgb(190, 190, 25),
+    Color::Rgb(157, 90, 152),
+    Color::Rgb(77, 60, 152),
+    Color::Rgb(190, 182, 92),
+    Color::Rgb(190, 25, 190),
+    Color::Rgb(82, 142, 157),
+    Color::Rgb(190, 190, 190),
+    Color::Rgb(25, 145, 190),
+    Color::Rgb(190, 35, 40),
+    Color::Rgb(190, 87, 40),
+    Color::Rgb(25, 190, 25),
+    Color::Rgb(190, 25, 87),
+    Color::Rgb(87, 87, 87),
     ];
 
 fn get_instrument_color(index : i8) -> Color{
@@ -48,7 +66,7 @@ impl StatefulWidget for NoteblockWidget {
 
         let mut tick: i32 = editor_state.prev_tick as i32;
         let mut layer: u16 = 0;
-
+        
         for index in editor_state.prev_index as usize ..editor_state.song.as_mut().unwrap().noteblocks.len(){
             match &editor_state.song.as_mut().unwrap().noteblocks[index]{
                 NoteblockSection::SetTick(num) => {

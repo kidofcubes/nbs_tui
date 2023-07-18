@@ -4,7 +4,6 @@ use std::time::Instant;
 use std::{fs::File, time::Duration};
 
 use editor::{AppResult};
-use event::{Event, EventHandler};
 use parsers::{Song, song};
 use rodio::{OutputStream, Decoder, source::Buffered, Source};
 
@@ -12,7 +11,6 @@ use crate::parsers::{Instrument, Layer, NoteblockSection};
 
 mod parsers;
 mod editor;
-mod event;
 mod noteblock_widget;
 
 const DEFAULT_INSTRUMENTS: [&str; 16] = ["harp","dbass","bdrum","sdrum","click","guitar","flute","bell","icechime","xylobone","iron_xylophone","cow_bell","didgeridoo","bit","banjo","pling"];
